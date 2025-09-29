@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>VR Module Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.163.0/examples/js/loaders/GLTFLoader.js"></script>
+  </head>
+  <body style="margin: 0; overflow: hidden; background: #000">
+    <button
+      id="enterVR"
+      style="
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        padding: 10px 20px;
+        font-size: 16px;
+        z-index: 10;
+      "
+    >
+      Xem VR
+    </button>
+    <script>
+      let scene, camera, renderer, model;
+
+      // Tạo scene
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x202020);
+
+      // Camera
+      camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        100
+      );
+      camera.position.set(0, 1.6, 3); // cao ngang tầm mắt
+
+      // Renderer
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.xr.enabled = true;
+      document.body.appendChild(renderer.domElement);
+
+      // Ánh sáng
+      const light = new THREE.HemisphereLight(0xffffff, 0x444444);
+      light.position.set(0, 20, 0);
+      scene.add(light);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff);
+      dirLight.position.set(3, 10, 10);
+      scene.add(dirLight);
+
+      // Load model GLTF/GLB
+      const loader = new THREE.GLTFLoader();
+      loader.load("b1.glb", (gltf) => {
+        model = gltf.scene;
+        model.scale.set(1, 1, 1);
+        scene.add(model);
+      });
+
+      // Render loop
+      renderer.setAnimationLoop(() => {
+        if (model) {
+          model.rotation.y += 0.005; // xoay nhẹ cho sinh động
+        }
+        renderer.render(scene, camera);
+      });
+
+      // Khi bấm nút "Xem VR"
+      document.getElementById("enterVR").addEventListener("click", async () => {
+        if (navigator.xr) {
+          try {
+            const session = await navigator.xr.requestSession("immersive-vr", {
+              optionalFeatures: ["local-floor", "bounded-floor"],
+            });
+            renderer.xr.setSession(session);
+          } catch (e) {
+            console.error("Không thể vào VR:", e);
+            alert("Trình duyệt hoặc kính VR không hỗ trợ WebXR");
+          }
+        } else {
+          alert("Trình duyệt này không hỗ trợ WebXR");
+        }
+      });
+
+      // Responsive
+      window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    </script>
+  </body>
+</html>

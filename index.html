@@ -22,8 +22,9 @@
     </button>
     <script>
       let scene, camera, renderer, model;
+      let rig; // nhóm chứa camera để di chuyển
 
-      // Tạo scene
+      // Scene
       scene = new THREE.Scene();
       scene.background = new THREE.Color(0x202020);
 
@@ -34,7 +35,12 @@
         0.1,
         100
       );
-      camera.position.set(0, 1.6, 3); // cao ngang tầm mắt
+      camera.position.set(0, 1.6, 0); // mắt cao 1.6m
+
+      // Rig (nhóm để dễ di chuyển cả camera)
+      rig = new THREE.Group();
+      rig.add(camera);
+      scene.add(rig);
 
       // Renderer
       renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -59,15 +65,42 @@
         scene.add(model);
       });
 
+      // Hàm xử lý joystick VR
+      function handleControllerInput() {
+        const session = renderer.xr.getSession();
+        if (!session) return;
+
+        for (const source of session.inputSources) {
+          if (!source.gamepad || !source.handedness) continue;
+          const [xAxis, yAxis] = source.gamepad.axes;
+
+          // Nếu có trục analog (Quest/VR controller)
+          if (Math.abs(xAxis) > 0.1 || Math.abs(yAxis) > 0.1) {
+            // Lấy hướng nhìn của camera
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+            direction.y = 0; // chỉ di chuyển theo mặt phẳng XZ
+
+            // Vector vuông góc để đi ngang (strafe)
+            const right = new THREE.Vector3();
+            right.crossVectors(direction, new THREE.Vector3(0, 1, 0));
+
+            // Tốc độ di chuyển
+            const speed = 0.05;
+
+            rig.position.addScaledVector(direction, -yAxis * speed);
+            rig.position.addScaledVector(right, xAxis * speed);
+          }
+        }
+      }
+
       // Render loop
       renderer.setAnimationLoop(() => {
-        if (model) {
-          model.rotation.y += 0.005; // xoay nhẹ cho sinh động
-        }
+        handleControllerInput(); // đọc input mỗi frame
         renderer.render(scene, camera);
       });
 
-      // Khi bấm nút "Xem VR"
+      // Nút "Xem VR"
       document.getElementById("enterVR").addEventListener("click", async () => {
         if (navigator.xr) {
           try {
